@@ -361,15 +361,17 @@ function remontaMatrizAdjacencia(){
         for (var j = i; j < cell_matrix[i].length; j++) {
 
             var val = null;
-            for (var k = 0; k < path_matrix && val != null; k++) {
+            for (var k = 0; k < path_matrix.length && val==null; k++) {
 
-                if (path_matrix[k].ini_lin == i && path_matrix[k].ini_col == j) {
+                console.log(path_matrix[k]);
+                if (path_matrix[k].dest_lin == i && path_matrix[k].dest_col == j) {
                     val = "-"
                 }
-                adj_matrix[i][j] = val
             }
+            adj_matrix[i][j] = val
         }
     }
+    console.log(adj_matrix);
 }
 
 function loadImagesBeforeInit() {
