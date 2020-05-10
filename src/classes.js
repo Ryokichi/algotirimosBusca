@@ -15,7 +15,10 @@ class GameScene {
 }
 
 class Text {
-    constructor(text, size, font) {
+    constructor(text, size, font, parent) {
+        if (parent)
+            parent.addChild(this);
+
         this.text = text || " ";
         this.size = size || 20;
         this.font = font || "monospace";
@@ -59,7 +62,6 @@ class Sprite {
             parent.addChild(this);
 
         this.image = getLoadedImage(src);
-
         this.x = 0;
         this.y = 0;
         this.w = this.image.width;
@@ -218,7 +220,6 @@ class Animation extends Sprite {
             this.time_playing += dt;
 
 
-
             if (this.time_playing >= (1000/this.fps)) {
                 this.time_playing = (this.time_playing > 2*(1000/this.fps)) ? 0 : this.time_playing -= (1000/this.fps);
 
@@ -245,7 +246,7 @@ class Animation extends Sprite {
 ////Animacao de multiplos sprites
 class AnimationM extends Animation {
     constructor(srcs,  parent) {
-        super(srcs[0], parent);
+        super(srcs[0], null, null, parent);
         this.imgs = srcs;
         this.range.end = this.imgs.length - 1;
     }
@@ -274,5 +275,9 @@ class AnimationM extends Animation {
 
     changeFrame (img){
         this.image = getLoadedImage(img);
+    }
+
+    setFrame (num) {
+        this.image = getLoadedImage(this.imgs[num]);
     }
 }
