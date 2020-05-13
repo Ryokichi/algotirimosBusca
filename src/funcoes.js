@@ -77,3 +77,5 @@ function circleCollideToRect(circle, rect) {
 
     return collided;
 }
+
+// module.exports = {pointDist};

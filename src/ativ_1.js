@@ -1,54 +1,106 @@
-var images_to_load = [
+let images_to_load = [
     "num_0.png", "num_1.png", "num_2.png", "num_3.png", "num_4.png", "num_5.png", "num_6.png", "num_7.png", "num_8.png",
     "num_9.png", "seta.png", "x_sign.png", "circ.png", "origem.png", "destino.png", "btn_go.png", "selection.png"
 ];
 
-var canvas, context, scene, last_time = 0;
-var cursorPos = {x: 0, y: 0};
+let canvas, context, scene, last_time = 0;
+let cursorPos = {x: 0, y: 0};
 
-var cell_matrix = [];
-var adj_matrix = [];
-var path_matrix = [];
-var mtx_lin = 2, mtx_col = 2;
-var img_mtx_lin, img_mtx_col;
-var drawing_line = false;
-var drawing_line_pos = {x:0, y:0};
-var cell_selected = {lin:null, col:null};
+let mtx_qtd_lin = 2, mtx_qtd_col = 2;
+let cell_matrix = [];
+let path_matrix = [];
+let adj_matrix = {qtd_lin: mtx_qtd_lin, qtd_col: mtx_qtd_col, mtx: []};
+let img_mtx_qtd_lin, img_mtx_qtd_col;
+let drawing_line = false;
+let drawing_line_pos = {x:0, y:0};
+let cell_selected = {lin:null, col:null};
 
-var setas = {
+let txt_dist_manhatann =  null;
+
+let setas = {
     lin_up: null,
     lin_down: null,
     col_up: null,
     col_down: null,
 };
 
-var algorithms =  ["Djikistra", "Kruskal", "Prim"];
-var search_type = algorithms[0];
-var search_btn = [];
-var x_sign, origem, destino, btn_go, btn_seletion;
+let algorithms =  ["Djikistra", "Kruskal", "Prim"];
+let search_type = algorithms[0];
+let search_btn = [];
+let x_sign, origem, destino, btn_go, btn_seletion;
+
+function loadImagesBeforeInit() {
+    let img = new Image();
+    img.src = "res/images/" + images_to_load[0];
+    img.spriteName = images_to_load[0];
+    img.onload = function () {
+        loadedImages.push(img);
+        images_to_load.shift();
+        if (images_to_load.length > 0) {
+            loadImagesBeforeInit();
+        }
+        else {
+            gameInit();
+        }
+    };
+}
+
+
+function setNewCanvasSize() {
+    let w = window.innerWidth * 0.95;
+    let h = window.innerHeight * 0.95;
+    let txt = "Window size: width=" + w + ", height=" + h;
+    console.log(txt);
+
+    context.setTransform(1, 0, 0, 1, 0, 0);
+
+    let new_w = 1, new_h = 1;
+    let is_smaller = ((w/1920) < (h/1080)) ? "w" : "h";
+    switch (is_smaller) {
+        case "w":
+            new_w = w;
+            new_h = w/1.7778;
+            break;
+        default:
+            new_w = h*1.778;
+            new_h = h;
+    }
+
+    context.canvas.width = new_w;
+    context.canvas.height = new_h;
+
+    context.scale(new_w/1920, new_h/1080);
+
+    console.log(context.canvas.width, context.canvas.height);
+}
+
 
 function gameInit () {
     canvas = document.getElementById("Canvas");
     context = canvas.getContext("2d");
+
     scene = new GameScene();
 
-    var text = new Text("Informe as dimensões da Matriz", 25, null, scene);
+    let text = new Text("Informe as dimensões da Matriz", 25, null, scene);
     text.setPosition(30,30);
 
-    var frames = [
+    txt_dist_manhatann = new Text("Dist. Manhatann: ", 20, null, scene);
+    txt_dist_manhatann.setPosition(30, 200);
+
+    let frames = [
         "num_0.png", "num_1.png", "num_2.png", "num_3.png", "num_4.png",
         "num_5.png", "num_6.png", "num_7.png", "num_8.png", "num_9.png",
     ];
 
 
-    var xi = 25, yi = 70;
-    for (var i = 0;  i < algorithms.length; i++) {
-        var btn = new Sprite("circ.png", scene);
+    let xi = 25, yi = 70;
+    for (let i = 0;  i < algorithms.length; i++) {
+        let btn = new Sprite("circ.png", scene);
         btn.setPosition(xi, yi+35*i);
         btn.algorithm = algorithms[i];
         search_btn.push(btn);
 
-        var t = new Text(algorithms[i], 20, null, scene);
+        let t = new Text(algorithms[i], 20, null, scene);
         t.setPosition(xi+15, yi+5+35*i);
     }
 
@@ -65,16 +117,16 @@ function gameInit () {
     setas.lin_down.setPosition(xi, yi+20);
     setas.lin_down.setRotation(180);
 
-    img_mtx_lin = new AnimationM(frames, scene);
-    img_mtx_lin.setFrame(mtx_lin);
-    img_mtx_lin.setPosition(xi+40, yi);
+    img_mtx_qtd_lin = new AnimationM(frames, scene);
+    img_mtx_qtd_lin.setFrame(mtx_qtd_lin);
+    img_mtx_qtd_lin.setPosition(xi+40, yi);
 
     x_sign = new Sprite("x_sign.png", scene);
     x_sign.setPosition(xi+80, yi);
 
-    img_mtx_col = new AnimationM(frames, scene);
-    img_mtx_col.setFrame(mtx_lin);
-    img_mtx_col.setPosition(xi+120, yi);
+    img_mtx_qtd_col = new AnimationM(frames, scene);
+    img_mtx_qtd_col.setFrame(mtx_qtd_lin);
+    img_mtx_qtd_col.setPosition(xi+120, yi);
 
     setas.col_up = new Sprite("seta.png",  scene);
     setas.col_up.setPosition(xi+160, yi-20);
@@ -112,21 +164,21 @@ function gameInit () {
     requestAnimationFrame(scheduleUpdate);
 }
 
-function scheduleUpdate (timestamp) {    
-    if (timestamp) {        
+function scheduleUpdate (timestamp) {
+    if (timestamp) {
         dt = (timestamp - last_time) / 1000;
         last_time = timestamp;
-        update(dt);
+        draw(dt);
     }
     requestAnimationFrame(scheduleUpdate);
 }
 
-function update (dt) {
+function draw (dt) {
     context.clearRect(0,0,canvas.width, canvas.height);
 
-    if (mtx_lin > 0  &&  mtx_col > 0) {
-        for (var i = 0; i  < mtx_lin; i++) {
-            for (var j = 0; j  < mtx_col; j++) {
+    if (mtx_qtd_lin > 0  &&  mtx_qtd_col > 0) {
+        for (let i = 0; i  < mtx_qtd_lin; i++) {
+            for (let j = 0; j  < mtx_qtd_col; j++) {
                 cell_matrix[i][j].draw(context);
             }
         }
@@ -141,8 +193,8 @@ function update (dt) {
         context.stroke();
     }
 
-    for (var i = 0; i < path_matrix.length; i++) {
-        var pos_i, pos_d;
+    for (let i = 0; i < path_matrix.length; i++) {
+        let pos_i, pos_d;
 
         pos_i = cell_matrix[path_matrix[i].ini_lin][path_matrix[i].ini_col].getPosition();
         pos_d = cell_matrix[path_matrix[i].dest_lin][path_matrix[i].dest_col].getPosition();
@@ -156,11 +208,47 @@ function update (dt) {
     }
 
     scene.draw(context);
+    printAdjMatrix();
+}
+
+function printAdjMatrix() {
+    context.font = "8px monospace";
+
+    let txt;
+    for (let i = 0; i < adj_matrix.mtx.length; i++) {
+        context.fillStyle = "black";
+        context.fillText(parseInt(i/adj_matrix.qtd_lin)+"x"+(i%adj_matrix.qtd_lin), 700-21, 230+15*i);
+        for (let j = 0; j < adj_matrix.mtx[i].length; j++) {
+            context.fillStyle = "black";
+            if (i == j) {
+                context.fillText(
+                    "|"+Math.floor(i/adj_matrix.qtd_lin)+"x"+(j%adj_matrix.qtd_lin),
+                    700+21*j,
+                    230-15);
+            }
+
+            txt = adj_matrix.mtx[i][j];
+            if (typeof txt == "number") {
+                if (txt != Infinity) {
+                    context.fillStyle = (txt==0)? "blue":"red";
+                    txt = txt.toFixed(2);
+                }
+                else {
+                    txt = "Inf";
+                }
+            }
+            else {
+                txt = " "
+            }
+
+            context.fillText("|"+txt, 700+21*j, 230+15*i);
+        }
+    }
 }
 
 function mousePressed(e) {
     console.log(cursorPos);
-    for (var seta in setas) {
+    for (let seta in setas) {
         if (rectContainsPoint(setas[seta].getBoundingBox(), cursorPos)) {
             setaClicada(seta);
             resetAllData();
@@ -171,8 +259,8 @@ function mousePressed(e) {
     destino.selecionado = (rectContainsPoint(destino.getBoundingBox(), cursorPos));
 
     if (!origem.selecionado  && !destino.selecionado) {
-        for (var i = 0; i < cell_matrix.length; i++) {
-            for (var j = 0; j < cell_matrix[i].length; j++) {
+        for (let i = 0; i < cell_matrix.length; i++) {
+            for (let j = 0; j < cell_matrix[i].length; j++) {
                 if (rectContainsPoint(cell_matrix[i][j].getBoundingBox(), getCursorPos())) {
                     drawing_line = true;
                     drawing_line_pos.x = cell_matrix[i][j].x;
@@ -184,7 +272,7 @@ function mousePressed(e) {
         }
     }
 
-    for (var i = 0; i < search_btn.length; i++) {
+    for (let i = 0; i < search_btn.length; i++) {
         if (rectContainsPoint(search_btn[i].getBoundingBox(), cursorPos)) {
             search_type = search_btn[i].algorithm;
             btn_seletion.setPosition(search_btn[i].x, search_btn[i].y);
@@ -197,10 +285,10 @@ function mouseReleased (e) {
     checkIfDroppedOnCell(destino);
 
     if (drawing_line) {
-        for (var i = 0; i < cell_matrix.length; i++) {
-            for (var j = 0; j < cell_matrix[i].length; j++) {
+        for (let i = 0; i < cell_matrix.length; i++) {
+            for (let j = 0; j < cell_matrix[i].length; j++) {
                 if (rectContainsPoint(cell_matrix[i][j].getBoundingBox(), getCursorPos())) {
-                    var adicionado = addPointsToPath(cell_selected.lin, cell_selected.col, i, j);
+                    let adicionado = addPointsToPath(cell_selected.lin, cell_selected.col, i, j);
                     if (adicionado)
                         remontaMatrizAdjacencia();
                 }
@@ -229,8 +317,8 @@ function addPointsToPath(ini_lin, ini_col, dest_lin, dest_col) {
         return false;
     }
 
-    var ja_existe = false;
-    for (var i = 0; i < path_matrix.length && !ja_existe; i++)  {
+    let ja_existe = false;
+    for (let i = 0; i < path_matrix.length && !ja_existe; i++)  {
         ja_existe = (
             path_matrix[i].ini_lin  === ini_lin &&
             path_matrix[i].ini_col  === ini_col &&
@@ -254,9 +342,9 @@ function addPointsToPath(ini_lin, ini_col, dest_lin, dest_col) {
 function checkIfDroppedOnCell (objeto) {
     if (!objeto.selecionado) return;
 
-    var on_cell = false;
-    for (var i = 0; i < cell_matrix.length && !on_cell; i++) {
-        for (var j = 0; j < cell_matrix[i].length && !on_cell; j++) {
+    let on_cell = false;
+    for (let i = 0; i < cell_matrix.length && !on_cell; i++) {
+        for (let j = 0; j < cell_matrix[i].length && !on_cell; j++) {
             if (objeto.selecionado) {
                 if (rectContainsPoint(cell_matrix[i][j].getBoundingBox(), objeto.getPosition())) {
                     objeto.setPosition(cell_matrix[i][j].x, cell_matrix[i][j].y);
@@ -301,29 +389,29 @@ function getCursorPos () {
 function setaClicada (seta) {
     switch (seta) {
         case "lin_up":
-            if (mtx_lin < 9) {
-                mtx_lin ++;
+            if (mtx_qtd_lin < 9) {
+                mtx_qtd_lin ++;
             }
             break;
         case "lin_down":
-            if (mtx_lin > 2) {
-                mtx_lin --;
+            if (mtx_qtd_lin > 2) {
+                mtx_qtd_lin --;
             }
             break;
         case "col_up":
-            if (mtx_col < 9) {
-                mtx_col ++;
+            if (mtx_qtd_col < 9) {
+                mtx_qtd_col ++;
             }
             break;
         case "col_down":
-            if (mtx_col > 2) {
-                mtx_col --;
+            if (mtx_qtd_col > 2) {
+                mtx_qtd_col --;
             }
             break;
     }
 
-    img_mtx_lin.setFrame(mtx_lin);
-    img_mtx_col.setFrame(mtx_col);
+    img_mtx_qtd_lin.setFrame(mtx_qtd_lin);
+    img_mtx_qtd_col.setFrame(mtx_qtd_col);
 
     generateMatrix();
 }
@@ -331,16 +419,18 @@ function setaClicada (seta) {
 function generateMatrix () {
     cell_matrix = [];
 
-    for (var i = 0; i  < mtx_lin; i++) {
+    for (let i = 0; i  < mtx_qtd_lin; i++) {
         cell_matrix[i] = [];
-        for (var j = 0; j  < mtx_col; j++) {
+        for (let j = 0; j  < mtx_qtd_col; j++) {
             cell_matrix[i][j] = new Sprite("circ.png");
-            cell_matrix[i][j].setPosition(448+64*j, 200+64*i);
+            cell_matrix[i][j].setPosition(30+64*j, 240+64*i);
         }
     }
 }
 
 function resetAllData () {
+    console.log("Limpando todos dados");
+
     origem.selecionado = false;
     origem.cel.lin = 0;
     origem.cel.col = 0;
@@ -352,40 +442,61 @@ function resetAllData () {
     destino.setPosition(destino.ini_pos.x, destino.ini_pos.y);
 
     path_matrix = [];
-    adj_matrix  = [];
+    adj_matrix = {
+        qtd_lin: 0,
+        qtd_col: 0,
+        mtx: []
+    };
 }
 
 function remontaMatrizAdjacencia(){
-    for (var i = 0; i < cell_matrix.length; i++) {
-        adj_matrix[i] = [];
-        for (var j = i; j < cell_matrix[i].length; j++) {
+    console.log("--");
+    let size = mtx_qtd_lin * mtx_qtd_col;
+    adj_matrix = {
+        qtd_lin: mtx_qtd_lin,
+        qtd_col: mtx_qtd_col,
+        mtx: []
+    };
 
-            var val = null;
-            for (var k = 0; k < path_matrix.length && val==null; k++) {
-
-                console.log(path_matrix[k]);
-                if (path_matrix[k].dest_lin == i && path_matrix[k].dest_col == j) {
-                    val = "-"
-                }
-            }
-            adj_matrix[i][j] = val
+    ////Monta matriz triangular superior
+    for (let lin = 0; lin < size; lin++) {
+        adj_matrix.mtx[lin] = [];
+        for (let col = lin; col < size; col++) {
+            adj_matrix.mtx[lin][col] = (lin == col) ? 0 : Infinity;
         }
+    }
+
+
+    //// Analiza as ligações, calcula seu peso e se um vertice estiver "abaixo" na matriz triangular é feita a troca
+    //// de coordenadas e enviado para a parte de cima
+    let ini_lin, ini_col, dest_lin, dest_col, val;
+    let coord_l = 0, coord_c = 0;
+    for (let i = 0; i < path_matrix.length; i++) {
+        ini_lin  = path_matrix[i].ini_lin;
+        ini_col  = path_matrix[i].ini_col;
+        dest_lin = path_matrix[i].dest_lin;
+        dest_col = path_matrix[i].dest_col;
+        val = distManhattan({x:ini_lin, y:ini_col}, {x:dest_lin, y:dest_col});
+
+        console.log(ini_lin+":"+ini_col+" | "+dest_lin+":"+dest_col);
+        console.log((ini_lin*mtx_qtd_lin + ini_col),(dest_lin*mtx_qtd_lin + dest_col));
+
+        let greater = ((ini_lin*mtx_qtd_lin + ini_col) > (dest_lin*mtx_qtd_lin + dest_col));
+        if (greater) {
+            coord_l = mtx_qtd_lin * dest_lin + dest_col;
+            coord_c = mtx_qtd_lin * ini_lin + ini_col;
+        }
+        else {
+            coord_l = mtx_qtd_lin * ini_lin + ini_col;
+            coord_c = mtx_qtd_lin * dest_lin + dest_col;
+        }
+
+        adj_matrix.mtx[coord_l][coord_c] = val;
     }
     console.log(adj_matrix);
 }
 
-function loadImagesBeforeInit() {
-    var img = new Image();
-    img.src = "res/images/" + images_to_load[0];
-    img.spriteName = images_to_load[0];
-    img.onload = function () {
-        loadedImages.push(img);
-        images_to_load.shift();
-        if (images_to_load.length > 0) {
-            loadImagesBeforeInit();
-        }
-        else {
-            gameInit();
-        }
-    };
+function distManhattan(pointA, pointB) {
+    return Math.sqrt(Math.pow(pointA.x-pointB.x, 2) + Math.pow(pointA.y-pointB.y, 2));
 }
+
