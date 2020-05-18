@@ -6,10 +6,10 @@ let images_to_load = [
 let canvas, context, scene, last_time = 0;
 let cursorPos = {x: 0, y: 0};
 
-let mtx_qtd_lin = 2, mtx_qtd_col = 2;
+let mtx_qtd_lin = 6, mtx_qtd_col = 6;
 let cell_matrix = [];
 let path_matrix = [];
-let adj_matrix = {qtd_lin: mtx_qtd_lin, qtd_col: mtx_qtd_col, mtx: []};
+let adj_matrix = [];
 let img_mtx_qtd_lin, img_mtx_qtd_col;
 let drawing_line = false;
 let drawing_line_pos = {x:0, y:0};
@@ -24,7 +24,7 @@ let setas = {
     col_down: null,
 };
 
-let algorithms =  ["Djikistra", "Kruskal", "Prim"];
+let algorithms = ["Djikstra", "Kruskal", "Prim"];
 let search_type = algorithms[0];
 let search_btn = [];
 let x_sign, origem, destino, btn_go, btn_seletion;
@@ -149,7 +149,7 @@ function gameInit () {
     destino.setPosition(xi, yi);
     destino.ini_pos = {x:xi, y:yi};
     destino.selecionado = false;
-    destino.cel = {l:0, c:0};
+    destino.cel = {lin:0, col:0};
 
     origem = new Sprite("origem.png", scene);
     origem.setPivotPoint(0.5, 1);
@@ -212,42 +212,39 @@ function draw (dt) {
 }
 
 function printAdjMatrix() {
-    context.font = "8px monospace";
+    context.font = "10px monospace";
 
     let txt;
-    for (let i = 0; i < adj_matrix.mtx.length; i++) {
+
+    for (let i = 0; i < adj_matrix.length; i++) {
         context.fillStyle = "black";
-        context.fillText(parseInt(i/adj_matrix.qtd_lin)+"x"+(i%adj_matrix.qtd_lin), 700-21, 230+15*i);
-        for (let j = 0; j < adj_matrix.mtx[i].length; j++) {
+        context.fillText(parseInt(i/mtx_qtd_col)+"x"+(i%mtx_qtd_col), 700-21, 230+15*i);
+
+        for (let j = 0; j < adj_matrix[i].length; j++) {
             context.fillStyle = "black";
             if (i == j) {
-                context.fillText(
-                    "|"+Math.floor(i/adj_matrix.qtd_lin)+"x"+(j%adj_matrix.qtd_lin),
-                    700+21*j,
-                    230-15);
+                txt = "|"+Math.floor(i/mtx_qtd_col)+"x"+(j%mtx_qtd_col);
+                context.fillText(txt, 700+21*j, 230-15);
             }
 
-            txt = adj_matrix.mtx[i][j];
+            txt = adj_matrix[i][j];                        
             if (typeof txt == "number") {
                 if (txt != Infinity) {
                     context.fillStyle = (txt==0)? "blue":"red";
-                    txt = txt.toFixed(2);
+                    txt = txt.toFixed(1);
                 }
                 else {
                     txt = "Inf";
                 }
             }
-            else {
-                txt = " "
-            }
 
             context.fillText("|"+txt, 700+21*j, 230+15*i);
-        }
+        }        
     }
 }
 
 function mousePressed(e) {
-    console.log(cursorPos);
+    // console.log(cursorPos);
     for (let seta in setas) {
         if (rectContainsPoint(setas[seta].getBoundingBox(), cursorPos)) {
             setaClicada(seta);
@@ -277,6 +274,23 @@ function mousePressed(e) {
             search_type = search_btn[i].algorithm;
             btn_seletion.setPosition(search_btn[i].x, search_btn[i].y);
         }
+    }
+
+    
+    if (rectContainsPoint(btn_go.getBoundingBox(),  cursorPos)) {
+        switch (search_type) {
+            case "Djikstra":
+                alg_busca = new PathFinding();
+                break;
+
+            case "Kruskal":
+                vetor_camanho = Djikstra(adj_matrix);
+                break;
+
+            case "Prim":
+                vetor_camanho = Djikstra(adj_matrix);
+        }
+        vetor_caminho = alg_busca.retonaCaminho(adj_matrix, origem.cel, destino.cel, {lin: mtx_qtd_lin, col: mtx_qtd_col});
     }
 }
 
@@ -319,12 +333,18 @@ function addPointsToPath(ini_lin, ini_col, dest_lin, dest_col) {
 
     let ja_existe = false;
     for (let i = 0; i < path_matrix.length && !ja_existe; i++)  {
-        ja_existe = (
+        ja_existe = ((
             path_matrix[i].ini_lin  === ini_lin &&
             path_matrix[i].ini_col  === ini_col &&
             path_matrix[i].dest_lin === dest_lin &&
             path_matrix[i].dest_col === dest_col
-        )
+        ) || 
+        (
+            path_matrix[i].ini_lin  === dest_lin &&
+            path_matrix[i].ini_col  === dest_col &&
+            path_matrix[i].dest_lin === ini_lin &&
+            path_matrix[i].dest_col === ini_col
+        ));
     }
 
     if (!ja_existe) {
@@ -389,7 +409,7 @@ function getCursorPos () {
 function setaClicada (seta) {
     switch (seta) {
         case "lin_up":
-            if (mtx_qtd_lin < 9) {
+            if (mtx_qtd_lin < 6) {
                 mtx_qtd_lin ++;
             }
             break;
@@ -399,7 +419,7 @@ function setaClicada (seta) {
             }
             break;
         case "col_up":
-            if (mtx_qtd_col < 9) {
+            if (mtx_qtd_col < 6) {
                 mtx_qtd_col ++;
             }
             break;
@@ -428,9 +448,7 @@ function generateMatrix () {
     }
 }
 
-function resetAllData () {
-    console.log("Limpando todos dados");
-
+function resetAllData () {    
     origem.selecionado = false;
     origem.cel.lin = 0;
     origem.cel.col = 0;
@@ -442,61 +460,95 @@ function resetAllData () {
     destino.setPosition(destino.ini_pos.x, destino.ini_pos.y);
 
     path_matrix = [];
-    adj_matrix = {
-        qtd_lin: 0,
-        qtd_col: 0,
-        mtx: []
-    };
+    adj_matrix = [];
 }
 
-function remontaMatrizAdjacencia(){
-    console.log("--");
+function remontaMatrizAdjacencia ()  {
     let size = mtx_qtd_lin * mtx_qtd_col;
-    adj_matrix = {
-        qtd_lin: mtx_qtd_lin,
-        qtd_col: mtx_qtd_col,
-        mtx: []
-    };
 
-    ////Monta matriz triangular superior
-    for (let lin = 0; lin < size; lin++) {
-        adj_matrix.mtx[lin] = [];
-        for (let col = lin; col < size; col++) {
-            adj_matrix.mtx[lin][col] = (lin == col) ? 0 : Infinity;
+    adj_matrix = [];
+
+    for (var lin = 0; lin < size; lin++) {
+        adj_matrix[lin] = [];
+        for (var col = 0; col <= lin; col++) {
+            adj_matrix[lin][col] = (lin == col) ? 0 : Infinity
         }
     }
 
-
-    //// Analiza as ligações, calcula seu peso e se um vertice estiver "abaixo" na matriz triangular é feita a troca
-    //// de coordenadas e enviado para a parte de cima
+    // //// Analiza as ligações, calcula seu peso e se um vertice estiver "acima" na matriz triangular é feita a troca
+    // //// de coordenadas e enviado para a parte de cima
     let ini_lin, ini_col, dest_lin, dest_col, val;
     let coord_l = 0, coord_c = 0;
+
     for (let i = 0; i < path_matrix.length; i++) {
         ini_lin  = path_matrix[i].ini_lin;
         ini_col  = path_matrix[i].ini_col;
         dest_lin = path_matrix[i].dest_lin;
         dest_col = path_matrix[i].dest_col;
-        val = distManhattan({x:ini_lin, y:ini_col}, {x:dest_lin, y:dest_col});
+        val = teoremaPitagoras({x:ini_lin, y:ini_col}, {x:dest_lin, y:dest_col});
 
-        console.log(ini_lin+":"+ini_col+" | "+dest_lin+":"+dest_col);
-        console.log((ini_lin*mtx_qtd_lin + ini_col),(dest_lin*mtx_qtd_lin + dest_col));
+        // console.log(ini_lin+":"+ini_col+" | "+dest_lin+":"+dest_col);
 
-        let greater = ((ini_lin*mtx_qtd_lin + ini_col) > (dest_lin*mtx_qtd_lin + dest_col));
-        if (greater) {
-            coord_l = mtx_qtd_lin * dest_lin + dest_col;
-            coord_c = mtx_qtd_lin * ini_lin + ini_col;
+        let vemPrimeiro = nodeIncialVemPrimeiro({x:ini_col, y:ini_lin}, {x:dest_col, y:dest_lin});
+        let coord_ori = {x: ini_col, y: ini_lin}, coord_dest = {x: dest_col, y: dest_lin};
+
+        if (vemPrimeiro) {
+            coord_l = mtx_qtd_col * dest_lin + dest_col;
+            coord_c = mtx_qtd_col * ini_lin + ini_col;
+            coord_dest = {x: ini_col, y: ini_lin}, coord_ori  = {x: dest_col, y: dest_lin};            
         }
         else {
-            coord_l = mtx_qtd_lin * ini_lin + ini_col;
-            coord_c = mtx_qtd_lin * dest_lin + dest_col;
+            coord_l = mtx_qtd_col * ini_lin + ini_col;
+            coord_c = mtx_qtd_col * dest_lin + dest_col;
         }
 
-        adj_matrix.mtx[coord_l][coord_c] = val;
+        // console.log(coord_l, coord_c);
+        adj_matrix[coord_l][coord_c] = val;
     }
-    console.log(adj_matrix);
+    // console.log(adj_matrix);
 }
 
-function distManhattan(pointA, pointB) {
+function whichNodeComesFirst (nodeA, nodeB) {
+    if (nodeB.lin < nodeA.lin) {
+        return nodeB;
+    }
+    else if (nodeB.lin == nodeA.lin && nodeB.col < nodeA.col) {
+        return nodeB;
+    }
+    return nodeA;
+}
+
+function nodeIncialVemPrimeiro (coordA, coordB) {
+    if (coordB.y < coordA.y) {
+        return false;
+    }
+    else if (coordB.y == coordA.y && coordB.x < coordA.x) {
+        return false;
+    }
+    return true;
+}
+
+
+
+function teoremaPitagoras(pointA, pointB) {
     return Math.sqrt(Math.pow(pointA.x-pointB.x, 2) + Math.pow(pointA.y-pointB.y, 2));
 }
 
+
+class Node {
+    constructor (lin, col) {
+        this.lin = lin;
+        this.col = col;
+        this.parent = null;
+        this.weight = Infinity;
+        this.closed = false;        
+    }
+}
+
+class Vertex  {
+    constructor (fromNode, toNode, weight) {
+        this.fromNode = fromNode;
+        this.toNode   = toNode,
+        this.weight   = weight;
+    }
+}
