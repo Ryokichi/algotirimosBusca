@@ -9,18 +9,18 @@ class PathFinding {
         this.lista_vertices = [];
         this.achei_destino = false;
         this.fechei_todos_vertices = false;
+        this.array_caminho = [];
     }
 
-    retonaCaminho (mtx, origem, destino, dimensao_mtx) {
+    retornaCaminho (mtx, origem, destino, dimensao_mtx) {
         this.mtx = mtx;
         this.dimensao_mtx = dimensao_mtx;
         this.coord_ori = origem;
         this.coord_dest = destino;
         this.pos_ori  = this.calcPosOnMtx(origem);
         this.pos_dest = this.calcPosOnMtx(destino);
-
-        console.log(this.pos_ori, this.pos_dest);
-        this.addVerticeNaLista(this.pos_ori, 0);
+        
+        this.addVerticeNaLista(this.pos_ori, 0, null);
 
         let vertice;
         let vertices_conectados = [];
@@ -29,28 +29,97 @@ class PathFinding {
             if (!this.fechei_todos_vertices) {
                 vertice = this.verticeComMenorEstimativaEFecha();
                 if (vertice != null) {
-                    vertices_conectados = this.buscaPosicaoDeVerticesConectados(vertice.pos);
-                    console.log(vertices_conectados);
+                    vertices_conectados = this.buscaPosicaoDeVerticesConectados(vertice.pos);                    
+                    for (var i = 0; i < vertices_conectados.length; i++) {
+                        this.verificaSeVertceEstaNaListaEAdiciona(vertices_conectados[i], vertice.pos);
+                    }
                 }
             }
 
         } while (!this.achei_destino && !this.fechei_todos_vertices);
+
+
+        this.array_caminho = [];
+
+        if (this.achei_destino) {
+            console.log("cheguei no destino");
+            this.array_caminho = this.tracaCaminhoDestinoAteOrigem();
+
+        }
+        else {
+            console.log("destino fora de alcance");
+        }
+
+        return {encontrado:this.achei_destino, caminho: this.array_caminho}
     }
 
-    buscaPosicaoDeVerticesConectados(pos) {
-        console.log("buscando conexoes  em ", pos);
-        let conectado = [];
+    tracaCaminhoDestinoAteOrigem() {        
+        let curr_pos = this.pos_dest;
+        let found_next = false;
+        let array_caminho = [];
+
+        while (curr_pos != null) {
+            found_next = false;
+            for (var i =  0;  i < this.lista_vertices.length && !found_next;  i++) {
+                if (this.lista_vertices[i].pos == curr_pos) {
+                    array_caminho.push(this.lista_vertices[i]);
+                    curr_pos = this.lista_vertices[i].precedente;
+                    found_next = true;
+                }
+            }
+        }
+        console.log("terminei de traçar o caminho");
+        return array_caminho;
+    }
+
+    verificaSeVertceEstaNaListaEAdiciona (pos_e_peso, precedente) {        
+        let pos = pos_e_peso.pos;
+        let peso = pos_e_peso.peso;
+        let peso_precedente = null;
+        let dados_alvo = null;
+
+        for (let i = 0; i < this.lista_vertices.length && !peso_precedente; i++) {            
+            if (precedente == this.lista_vertices[i].pos) {                
+                peso_precedente = this.lista_vertices[i].g;
+            }            
+        }
+        
+        for (let i = 0; i < this.lista_vertices.length && !dados_alvo; i++) {
+            if (pos_e_peso.pos == this.lista_vertices[i].pos) {
+                dados_alvo = this.lista_vertices[i];
+            }            
+        }
+
+        if (dados_alvo != null){
+            if (!dados_alvo.fechado) {
+                if (dados_alvo.g < (peso+peso_precedente)) {
+                    dados_alvo.setPrecedente(precedente);
+                    dados_alvo.setG(peso+peso_precedente);
+                    dados_alvo.updateEstimativa();
+                }
+            }
+        }
+        else {
+            this.addVerticeNaLista(pos, peso+peso_precedente, precedente)
+            if (pos == this.pos_dest) {
+                this.achei_destino = true;
+            }
+        }
+    }
+
+    buscaPosicaoDeVerticesConectados(pos) {        
+        let conectados = [];
         for (let col = 0; col < pos; col++) {
-            if (this.mtx[pos][col] < Infinity) {
-                console.log(col, this.mtx[pos][col]);
+            if (this.mtx[pos][col] < Infinity) {                
+                conectados.push({pos:col, peso: this.mtx[pos][col]});
             }
         }
         for (let lin = pos+1; lin < this.mtx.length; lin++) {
             if (this.mtx[lin][pos] < Infinity) {
-                console.log(lin, this.mtx[lin][pos]);
+                conectados.push({pos:lin, peso: this.mtx[lin][pos]});
             }
         }
-        return conectado;
+        return conectados;
     }
 
     verticeComMenorEstimativaEFecha () {
@@ -84,10 +153,11 @@ class PathFinding {
         return todos_fechados;
     }
 
-    addVerticeNaLista (pos, peso) {
+    addVerticeNaLista (pos, peso, precedente) {
         let coord = this.calcCoordOfPoint(pos);
-        let vertice = new Vertice(pos, coord);        
+        let vertice = new Vertice(pos, coord);
 
+        vertice.setPrecedente(precedente);
         vertice.setH( this.distManhatann(coord, this.coord_dest) );
         vertice.setG(peso);
         vertice.updateEstimativa();
@@ -122,6 +192,12 @@ class Vertice {
         this.h = Infinity; ////
     }
 
+    setPrecedente(p) {
+        this.precedente = p;
+    }
+    getPrecedente() {
+        return this.precedente;
+    }
     setF(val) {
         this.f = val;
     }

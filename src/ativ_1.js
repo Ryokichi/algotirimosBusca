@@ -5,6 +5,9 @@ let images_to_load = [
 
 let canvas, context, scene, last_time = 0;
 let cursorPos = {x: 0, y: 0};
+let input_travado = true;
+let animando_caminho = false;
+let vetor_caminho = null;
 
 let mtx_qtd_lin = 6, mtx_qtd_col = 6;
 let cell_matrix = [];
@@ -14,8 +17,10 @@ let img_mtx_qtd_lin, img_mtx_qtd_col;
 let drawing_line = false;
 let drawing_line_pos = {x:0, y:0};
 let cell_selected = {lin:null, col:null};
+let ultima_coordena = null;
 
 let txt_dist_manhatann =  null;
+let txt_dist_efetiva   =  null;
 
 let setas = {
     lin_up: null,
@@ -24,7 +29,8 @@ let setas = {
     col_down: null,
 };
 
-let algorithms = ["Djikstra", "Kruskal", "Prim"];
+// let algorithms = ["Djikstra", "Kruskal", "Prim"];  ///Deu errado essa ideia
+let algorithms = ["PathFinding"];
 let search_type = algorithms[0];
 let search_btn = [];
 let x_sign, origem, destino, btn_go, btn_seletion;
@@ -81,11 +87,21 @@ function gameInit () {
 
     scene = new GameScene();
 
-    let text = new Text("Informe as dimensões da Matriz", 25, null, scene);
+    let text = new Text("1 - Informe as dimensões da Matriz clicando nas setas", 20, null, scene);
     text.setPosition(30,30);
+    text = new Text("2 - Clique e arraste de um Nó para outro afim de traçar caminhos", 20, null, scene);
+    text.setPosition(30,55);
+    text = new Text("3 - Coloque o jovem mancebo para indicar a arigem e a casa para indicar o destino", 20, null, scene);
+    text.setPosition(30,80);
+    text = new Text("4 - Clique sobre o botão \"GO\" para rodar o algoritmo de  PathFinding", 20, null, scene);
+    text.setPosition(30,105);
+    text = new Text("5 - Não seguir essa ordem de ações pode trazer resultados inesperados", 20, null, scene);
+    text.setPosition(30,130);
 
     txt_dist_manhatann = new Text("Dist. Manhatann: ", 20, null, scene);
-    txt_dist_manhatann.setPosition(30, 200);
+    txt_dist_manhatann.setPosition(30, 240);
+    txt_dist_efetiva = new Text("Dist. Efetiva  : ", 20, null, scene);
+    txt_dist_efetiva.setPosition(30, 260);
 
     let frames = [
         "num_0.png", "num_1.png", "num_2.png", "num_3.png", "num_4.png",
@@ -93,7 +109,7 @@ function gameInit () {
     ];
 
 
-    let xi = 25, yi = 70;
+    let xi = 25, yi = 170;
     for (let i = 0;  i < algorithms.length; i++) {
         let btn = new Sprite("circ.png", scene);
         btn.setPosition(xi, yi+35*i);
@@ -109,7 +125,7 @@ function gameInit () {
 
 
     ////------ Itens da selecao tamanho da matriz -----////
-    xi = 240; yi = 100;
+    xi = 500; yi = 180;
     setas.lin_up = new Sprite("seta.png",  scene);
     setas.lin_up.setPosition(xi, yi-20);
 
@@ -142,26 +158,29 @@ function gameInit () {
 
 
     ////----- Objetos origem e Destino ----/////
-    xi = 600; yi = 120;
+    xi = 360; yi = 190;
 
     destino = new Sprite("destino.png", scene);
     destino.setPivotPoint(0.5, 1);
-    destino.setPosition(xi, yi);
-    destino.ini_pos = {x:xi, y:yi};
+    destino.setPosition(xi + 60, yi);
+    destino.ini_pos = {x:xi + 60, y:yi};
     destino.selecionado = false;
     destino.cel = {lin:0, col:0};
+    destino.on_cell = false;
 
     origem = new Sprite("origem.png", scene);
     origem.setPivotPoint(0.5, 1);
-    origem.setPosition(xi+60, yi);
-    origem.ini_pos = {x:xi+60, y:yi};
+    origem.setPosition(xi, yi);
+    origem.ini_pos = {x:xi, y:yi};
     origem.selecionado = false;
     origem.cel = {lin:0, col:0};
+    origem.on_cell = false;
     ////----- Objetos origem e Destino ----/////
 
 
     generateMatrix();
     requestAnimationFrame(scheduleUpdate);
+    input_travado = false;
 }
 
 function scheduleUpdate (timestamp) {
@@ -207,24 +226,47 @@ function draw (dt) {
         context.stroke();
     }
 
+    if (vetor_caminho != null && vetor_caminho.length > 0) {
+        let dist_percorrida = 0;
+        
+        txt_dist_efetiva.setString("Dist. Efetiva  : " + vetor_caminho[0].f.toFixed(4));
+
+        for (let i = 0; i < vetor_caminho.length-1; i++) {
+            let lin_i = vetor_caminho[i].coord.lin;
+            let col_i = vetor_caminho[i].coord.col;
+            let lin_d = vetor_caminho[i+1].coord.lin;
+            let col_d = vetor_caminho[i+1].coord.col;
+
+            pos_i = cell_matrix[lin_i][col_i].getPosition();
+            pos_d = cell_matrix[lin_d][col_d].getPosition();
+
+            context.beginPath();
+            context.moveTo(pos_i.x, pos_i.y);
+            context.lineTo(pos_d.x, pos_d.y);
+            context.lineWidth = 5;
+            context.strokeStyle = "#00FF00";
+            context.stroke();
+        }
+    }
+
     scene.draw(context);
     printAdjMatrix();
 }
 
 function printAdjMatrix() {
     context.font = "10px monospace";
-
+    let x = 700, y = 300;
     let txt;
 
     for (let i = 0; i < adj_matrix.length; i++) {
         context.fillStyle = "black";
-        context.fillText(parseInt(i/mtx_qtd_col)+"x"+(i%mtx_qtd_col), 700-21, 230+15*i);
+        context.fillText(parseInt(i/mtx_qtd_col)+"x"+(i%mtx_qtd_col), x-21, y+15*i);
 
         for (let j = 0; j < adj_matrix[i].length; j++) {
             context.fillStyle = "black";
             if (i == j) {
                 txt = "|"+Math.floor(i/mtx_qtd_col)+"x"+(j%mtx_qtd_col);
-                context.fillText(txt, 700+21*j, 230-15);
+                context.fillText(txt, x+21*j, y-15);
             }
 
             txt = adj_matrix[i][j];                        
@@ -238,12 +280,15 @@ function printAdjMatrix() {
                 }
             }
 
-            context.fillText("|"+txt, 700+21*j, 230+15*i);
+            context.fillText("|"+txt, x+21*j, y+15*i);
         }        
     }
 }
 
 function mousePressed(e) {
+    if (input_travado)
+        return;
+
     // console.log(cursorPos);
     for (let seta in setas) {
         if (rectContainsPoint(setas[seta].getBoundingBox(), cursorPos)) {
@@ -275,28 +320,33 @@ function mousePressed(e) {
             btn_seletion.setPosition(search_btn[i].x, search_btn[i].y);
         }
     }
-
     
     if (rectContainsPoint(btn_go.getBoundingBox(),  cursorPos)) {
-        switch (search_type) {
-            case "Djikstra":
-                alg_busca = new PathFinding();
-                break;
+        // switch (search_type) {
+        //     case "Djikstra":
+        //         vetor_camanho = Djikstra(adj_matrix);
+        //         break;
 
-            case "Kruskal":
-                vetor_camanho = Djikstra(adj_matrix);
-                break;
+        //     case "Kruskal":
+        //         vetor_camanho = Kruskal(adj_matrix);
+        //         break;
 
-            case "Prim":
-                vetor_camanho = Djikstra(adj_matrix);
-        }
-        vetor_caminho = alg_busca.retonaCaminho(adj_matrix, origem.cel, destino.cel, {lin: mtx_qtd_lin, col: mtx_qtd_col});
+        //     case "Prim":
+        //         vetor_camanho = Prim(adj_matrix);
+        // }
+
+        input_travado = true;
+        alg_busca     = new PathFinding();
+        retorno = alg_busca.retornaCaminho(adj_matrix, origem.cel, destino.cel, {lin: mtx_qtd_lin, col: mtx_qtd_col});
+        vetor_caminho = retorno.caminho;
+        input_travado = false;
     }
 }
 
 function mouseReleased (e) {
     checkIfDroppedOnCell(origem);
     checkIfDroppedOnCell(destino);
+    calculaManhatann();
 
     if (drawing_line) {
         for (let i = 0; i < cell_matrix.length; i++) {
@@ -370,6 +420,7 @@ function checkIfDroppedOnCell (objeto) {
                     objeto.setPosition(cell_matrix[i][j].x, cell_matrix[i][j].y);
                     objeto.cel.lin = i;
                     objeto.cel.col = j;
+                    objeto.on_cell = true;
                     on_cell = true;
                 }
             }
@@ -379,6 +430,7 @@ function checkIfDroppedOnCell (objeto) {
     if (!on_cell) {
         objeto.cel.lin = 0;
         objeto.cel.col = 0;
+        objeto.on_cell = false;
         objeto.setPosition(objeto.ini_pos.x, objeto.ini_pos.y);
     }
 
@@ -439,11 +491,11 @@ function setaClicada (seta) {
 function generateMatrix () {
     cell_matrix = [];
 
-    for (let i = 0; i  < mtx_qtd_lin; i++) {
+    for (let i = 0; i < mtx_qtd_lin; i++) {
         cell_matrix[i] = [];
         for (let j = 0; j  < mtx_qtd_col; j++) {
             cell_matrix[i][j] = new Sprite("circ.png");
-            cell_matrix[i][j].setPosition(30+64*j, 240+64*i);
+            cell_matrix[i][j].setPosition(30+64*j, 300+64*i);
         }
     }
 }
@@ -461,6 +513,10 @@ function resetAllData () {
 
     path_matrix = [];
     adj_matrix = [];
+    vetor_caminho = null;
+    ultima_coordena = null;
+
+    txt_dist_efetiva.setString("Dist. Efetiva  : ----");
 }
 
 function remontaMatrizAdjacencia ()  {
@@ -528,10 +584,22 @@ function nodeIncialVemPrimeiro (coordA, coordB) {
     return true;
 }
 
+function calculaManhatann () {
+    if (origem.on_cell && destino.on_cell) {
+        txt_dist_manhatann.setString("Dist. Manhatann: "+ distManhatann(origem.cel, destino.cel));
 
+    }
+    else {
+        txt_dist_manhatann.setString("Dist. Manhatann: ----");
+    }
+}
 
 function teoremaPitagoras(pointA, pointB) {
     return Math.sqrt(Math.pow(pointA.x-pointB.x, 2) + Math.pow(pointA.y-pointB.y, 2));
+}
+
+function distManhatann(coordA, coordB) {
+    return Math.abs(coordA.col-coordB.col) + Math.abs(coordA.lin-coordB.lin);
 }
 
 
