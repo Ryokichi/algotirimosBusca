@@ -228,6 +228,7 @@ function draw (dt) {
 
     if (vetor_caminho != null && vetor_caminho.length > 0) {
         let dist_percorrida = 0;
+        let txt_coordenadas = "";
         
         txt_dist_efetiva.setString("Dist. Efetiva  : " + vetor_caminho[0].f.toFixed(4));
 
@@ -245,8 +246,18 @@ function draw (dt) {
             context.lineTo(pos_d.x, pos_d.y);
             context.lineWidth = 5;
             context.strokeStyle = "#00FF00";
-            context.stroke();
+            context.stroke()
+            
+            txt_coordenadas = " | "+lin_i+"x"+col_i + txt_coordenadas;
         }
+        let k = vetor_caminho.length-1;
+        let lin_i = vetor_caminho[k].coord.lin;
+        let col_i = vetor_caminho[k].coord.col;
+        txt_coordenadas = lin_i+"x"+col_i + txt_coordenadas;
+
+        context.font = "12px monospace";
+        context.fillStyle = "#000000";
+        context.fillText("Caminho:"+ txt_coordenadas, 30, 820);
     }
 
     scene.draw(context);
@@ -255,7 +266,7 @@ function draw (dt) {
 
 function printAdjMatrix() {
     context.font = "10px monospace";
-    let x = 700, y = 300;
+    let x = 700, y = 270;
     let txt;
 
     for (let i = 0; i < adj_matrix.length; i++) {
