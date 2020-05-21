@@ -91,9 +91,9 @@ function gameInit () {
     text.setPosition(30,30);
     text = new Text("2 - Clique e arraste de um Nó para outro afim de traçar caminhos", 20, null, scene);
     text.setPosition(30,55);
-    text = new Text("3 - Coloque o jovem mancebo para indicar a arigem e a casa para indicar o destino", 20, null, scene);
+    text = new Text("3 - Coloque o jovem mancebo para indicar a origem e a casa para indicar o destino", 20, null, scene);
     text.setPosition(30,80);
-    text = new Text("4 - Clique sobre o botão \"GO\" para rodar o algoritmo de  PathFinding", 20, null, scene);
+    text = new Text("4 - Clique sobre o botão \"GO\" para rodar o algoritmo de PathFinding onde F(n)=G(n)+H\'(n)", 20, null, scene);
     text.setPosition(30,105);
     text = new Text("5 - Não seguir essa ordem de ações pode trazer resultados inesperados", 20, null, scene);
     text.setPosition(30,130);

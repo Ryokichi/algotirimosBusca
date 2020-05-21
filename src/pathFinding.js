@@ -29,7 +29,7 @@ class PathFinding {
             if (!this.fechei_todos_vertices) {
                 vertice = this.verticeComMenorEstimativaEFecha();
                 if (vertice != null) {
-                    vertices_conectados = this.buscaPosicaoDeVerticesConectados(vertice.pos);                    
+                    vertices_conectados = this.buscaPosicaoDeVerticesConectados(vertice.pos);
                     for (var i = 0; i < vertices_conectados.length; i++) {
                         this.verificaSeVertceEstaNaListaEAdiciona(vertices_conectados[i], vertice.pos);
                     }
@@ -44,12 +44,13 @@ class PathFinding {
         if (this.achei_destino) {
             console.log("cheguei no destino");
             this.array_caminho = this.tracaCaminhoDestinoAteOrigem();
-
         }
         else {
             console.log("destino fora de alcance");
         }
 
+        console.log(this.lista_vertices);
+        console.log(this.array_caminho);
         return {encontrado:this.achei_destino, caminho: this.array_caminho}
     }
 
@@ -74,33 +75,39 @@ class PathFinding {
 
     verificaSeVertceEstaNaListaEAdiciona (pos_e_peso, precedente) {        
         let pos = pos_e_peso.pos;
-        let peso = pos_e_peso.peso;
+        let peso_conexao = pos_e_peso.peso;
         let peso_precedente = null;
         let dados_alvo = null;
 
+
+        console.log(precedente, pos, peso_conexao);
         for (let i = 0; i < this.lista_vertices.length && !peso_precedente; i++) {            
             if (precedente == this.lista_vertices[i].pos) {                
                 peso_precedente = this.lista_vertices[i].g;
             }            
-        }
+        }        
         
         for (let i = 0; i < this.lista_vertices.length && !dados_alvo; i++) {
-            if (pos_e_peso.pos == this.lista_vertices[i].pos) {
+            if (pos == this.lista_vertices[i].pos) {
                 dados_alvo = this.lista_vertices[i];
             }            
         }
 
-        if (dados_alvo != null){
-            if (!dados_alvo.fechado) {
-                if (dados_alvo.g < (peso+peso_precedente)) {
+        if (dados_alvo != null){            
+            if (!dados_alvo.fechado) {                
+                if (dados_alvo.g > (peso_conexao+peso_precedente)) {
+                    console.log(dados_alvo.pos);
+                    console.log(precedente, peso_conexao+peso_precedente);
+
                     dados_alvo.setPrecedente(precedente);
-                    dados_alvo.setG(peso+peso_precedente);
+                    dados_alvo.setG(peso_conexao+peso_precedente);
                     dados_alvo.updateEstimativa();
                 }
             }
         }
         else {
-            this.addVerticeNaLista(pos, peso+peso_precedente, precedente)
+            console.log("Adicionando na lista:", precedente, pos, peso_conexao+peso_precedente);
+            this.addVerticeNaLista(pos, peso_conexao+peso_precedente, precedente)
             if (pos == this.pos_dest) {
                 this.achei_destino = true;
             }
